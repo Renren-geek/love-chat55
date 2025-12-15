@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>どっちが大事なの？🥺チャット</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    body{
+      font-family:"M PLUS Rounded 1c",system-ui,-apple-system,"Hiragino Sans","Noto Sans JP","Yu Gothic","Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif;
+      background:linear-gradient(135deg,#ffb7d5,#ffcfe9,#ffdff2);
+      background-size:300% 300%;
+      animation:gradientMove 12s ease infinite;
+    }
+    @keyframes gradientMove{
+      0%{background-position:0% 50%;}
+      50%{background-position:100% 50%;}
+      100%{background-position:0% 50%;}
+    }
+
+    .heart-bg::before{
+      content:"💗 💕 💓 💖 💘 💞";
+      position:absolute;
+      font-size:3rem;
+      opacity:0.12;
+      top:-20px;
+      left:0;
+      width:100%;
+      text-align:center;
+      animation:hearts 10s linear infinite;
+      pointer-events:none;
+      user-select:none;
+      filter:blur(0.2px);
+    }
+    @keyframes hearts{
+      0%{transform:translateY(0);}
+      100%{transform:translateY(100vh);}
+    }
+
+    /* popup animation */
+    .pop-card{
+      transform:translateY(8px) scale(0.98);
+      opacity:0;
+      transition:transform .18s ease, opacity .18s ease;
+    }
+    .pop-open .pop-card{
+      transform:translateY(0) scale(1);
+      opacity:1;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden heart-bg antialiased">
+
+  <div id="app" class="w-full max-w-sm bg-white/90 backdrop-blur-md rounded-3xl shadow-2xl flex flex-col h-[80vh]">
+
+    <header class="px-4 py-3 bg-pink-400 text-white rounded-t-3xl shadow-md">
+      <p class="text-[10px] uppercase tracking-[0.25em] opacity-80">Love Message</p>
+
+      <div class="flex items-center justify-between mt-1">
+        <p class="text-lg font-bold flex items-center gap-1">
+          どっちが大事なの？<span>🥺</span>
+        </p>
+        <p id="mode" class="text-[10px] uppercase tracking-[0.25em] opacity-80">Mode: NORMAL</p>
+      </div>
+    </header>
+
+    <main id="chat" class="flex-1 overflow-y-auto px-3 py-3 space-y-3 bg-gradient-to-b from-pink-100/60 to-pink-200/60">
+      <div class="flex justify-start">
+        <div class="max-w-[75%] px-3 py-2 rounded-2xl text-sm shadow bg-pink-200 text-slate-700 rounded-tl-none leading-relaxed">
+          ねぇ…今、何が一番大事なの？💗（名詞を入れてね）
+        </div>
+      </div>
+    </main>
+
+    <footer class="px-4 py-3 bg-white rounded-b-3xl border-t">
+      <form id="chatForm" class="space-y-2">
+        <div class="mb-2">
+          <input id="uname" type="text"
+            class="w-full rounded-full bg-pink-50 border border-pink-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
+            placeholder="あなたの名前 💗">
+        </div>
+
+        <div class="flex items-end gap-2">
+          <textarea id="text" rows="2"
+            class="flex-1 rounded-2xl bg-pink-50 border border-pink-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-pink-400"
+            placeholder="名詞を入力してね（例：仕事、松屋、そば…）"></textarea>
+
+          <button id="send" type="submit"
+            class="shrink-0 rounded-full bg-pink-400 hover:bg-pink-300 text-white text-sm font-bold px-4 py-2 shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed">
+            送信💞
+          </button>
+        </div>
+
+        <p id="status" class="mt-2 text-[11px] text-slate-500">
+          ※「疲れた」「しんどい」「無理」で彼女が“穏やかモード”になります
+        </p>
+      </form>
+    </footer>
+  </div>
+
+  <div id="popup" class="fixed inset-0 hidden items-center justify-center bg-black/40 p-6">
+    <div class="pop-card w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl">
+      <p class="text-[10px] uppercase tracking-[0.25em] text-pink-500">NOTICE</p>
+      <h3 id="popupTitle" class="mt-2 text-lg font-bold text-slate-800">彼女に変化が…！</h3>
+      <p id="popupBody" class="mt-2 text-sm text-slate-700 leading-relaxed">
+        彼女の心は、葉加瀬太郎と久石譲のハーフくらい穏やかになった…。
+      </p>
+
+      <button id="popupClose"
+        class="mt-4 w-full rounded-2xl bg-pink-400 py-2 text-sm font-bold text-white hover:bg-pink-300">
+        うん…
+      </button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.2/firebase-app.js";
+    import { getDatabase, ref, set, onChildAdded, onValue, child, push } from "https://www.gstatic.com/firebasejs/9.0.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: xxxxx
+      authDomain: xxxxx
+      databaseURL: xxxxx
+      projectId: xxxxx
+      storageBucket: xxxxx
+      messagingSenderId: xxxxx
+      appId: xxxxx
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const sessionId = crypto.randomUUID();
+    const dbRef = ref(db, "chat/" + sessionId);
+
+    // DOM
+    const chat = document.getElementById("chat");
+    const textEl = document.getElementById("text");
+    const nameEl = document.getElementById("uname");
+    const formEl = document.getElementById("chatForm");
+    const sendEl = document.getElementById("send");
+    const modeEl = document.getElementById("mode");
+    const statusEl = document.getElementById("status");
+
+    const popup = document.getElementById("popup");
+    const popupClose = document.getElementById("popupClose");
+    const popupTitle = document.getElementById("popupTitle");
+    const popupBody  = document.getElementById("popupBody");
+
+    const initialMessageText = "ねぇ…今、何が一番大事なの？💗（名詞を入れてね）";
+
+    const savedName = localStorage.getItem("chatName");
+    if (savedName) nameEl.value = savedName;
+
+    let mode = "NORMAL";
+    let isFirebaseReady = false;
+    let isSending = false;
+
+    function openPopup() {
+      popup.classList.remove("hidden");
+      popup.classList.add("flex", "pop-open");
+      popupClose.focus({ preventScroll: true });
+    }
+    function closePopup() {
+      popup.classList.remove("pop-open");
+      popup.classList.add("hidden");
+      popup.classList.remove("flex");
+    }
+    function showPopup(title, body) {
+      popupTitle.textContent = title;
+      popupBody.textContent = body;
+      openPopup();
+    }
+    popupClose.addEventListener("click", closePopup);
+    popup.addEventListener("click", (e) => { if (e.target === popup) closePopup(); });
+    window.addEventListener("keydown", (e) => { if (e.key === "Escape" && !popup.classList.contains("hidden")) closePopup(); });
+
+    function addBubble(text, isBot) {
+      const wrapper = document.createElement("div");
+      wrapper.className = `flex ${isBot ? "justify-start" : "justify-end"}`;
+
+      const bubble = document.createElement("div");
+      bubble.className = `
+        max-w-[75%] px-3 py-2 rounded-2xl text-sm shadow leading-relaxed whitespace-pre-wrap
+        ${isBot
+          ? "bg-pink-200 text-slate-700 rounded-tl-none"
+          : "bg-pink-400 text-white rounded-tr-none"
+        }
+      `;
+      bubble.textContent = text;
+
+      wrapper.appendChild(bubble);
+      chat.appendChild(wrapper);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function isKindTrigger(text) {
+      return ["疲れた", "しんどい", "無理"].some(k => text.includes(k));
+    }
+
+    function setUiEnabled() {
+      const enabled = isFirebaseReady && !isSending;
+      sendEl.disabled = !enabled;
+      statusEl.textContent = isFirebaseReady
+        ? "※「疲れた」「しんどい」「無理」で彼女が“穏やかモード”になります"
+        : "⚠️ Firebaseに接続できません（送信できません）。接続が戻るまで待ってね。";
+    }
+
+    const connectedRef = ref(db, ".info/connected");
+    onValue(connectedRef, (snap) => {
+      isFirebaseReady = !!snap.val();
+      setUiEnabled();
+    });
+    setUiEnabled();
+
+    async function askGemini(userText, userName) {
+      const res = await fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_text: userText, user_name: userName }),
+      });
+
+      const raw = await res.text();
+      console.log("gemini status:", res.status);
+      console.log("gemini raw:", raw);
+
+      let data = {};
+      try { data = JSON.parse(raw); } catch {}
+
+      if (!res.ok) throw new Error(data.error || raw || ("HTTP " + res.status));
+      return data.reply || "";
+    }
+
+    async function sendMessage() {
+      const uname = (nameEl.value.trim() || "あなた");
+      const text = textEl.value.trim();
+      if (!text) return;
+      if (isSending) return;
+
+      if (!isFirebaseReady) {
+        showPopup("接続できてないみたい…", "いまは送れない。接続が戻ったら、もう一回だけ送って？");
+        return;
+      }
+
+      const msgId = crypto.randomUUID(); 
+
+      isSending = true;
+      sendEl.textContent = "送信中…";
+      setUiEnabled();
+
+      try {
+        localStorage.setItem("chatName", uname);
+
+        await set(push(dbRef), { role: "user", text, uname, time: Date.now() });
+
+    
+        if (isKindTrigger(text) && mode !== "KIND") {
+          mode = "KIND";
+          modeEl.textContent = "Mode: KIND";
+
+          const fx = "ん…彼女に変化が…！心が、すっと澄んでいく。";
+          await set(push(dbRef), { role: "bot", uname: "彼女だよ💗", text: fx, time: Date.now() + 1 });
+
+          showPopup("彼女に変化が…！", "彼女の心は、葉加瀬太郎と久石譲のハーフくらい穏やかになった…。");
+        }
+
+        let reply;
+        if (mode === "KIND") {
+          reply = "だいじょうぶだよ。ちゃんとここにいる。";
+          try {
+            // KINDモードの時だけ、Geminiに問い合わせる
+            const r = await askGemini(text, uname);
+            if (r) reply = r;
+          } catch (e) {
+            console.error(e);
+            reply = "ごめんね…いま少しだけ通信が不安定みたい。深呼吸しよ。";
+          }
+        } else {
+          // NORMALモードの時は、Geminiに問い合わせず定型文を返す
+          reply = `私と「${text}」どっちが大事なの？🥺`;
+        }
+        
+        await set(push(dbRef), { role: "bot", uname: "彼女だよ💗", text: reply, time: Date.now() + 2 });
+
+        textEl.value = "";
+        textEl.focus({ preventScroll: true });
+
+      } catch (e) {
+        console.error(e);
+        showPopup("エラー…", "送信に失敗した。FirebaseのRules/接続、またはサーバ起動状況を確認してね。");
+      } finally {
+        isSending = false;
+        sendEl.textContent = "送信💞";
+        setUiEnabled();
+      }
+    }
+
+    formEl.addEventListener("submit", (e) => {
+      e.preventDefault();
+      sendMessage();
+    });
+
+    // Enter送信も submit に集約（Shift+Enter は改行）
+    textEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        formEl.requestSubmit();
+      }
+    });
+
+    onChildAdded(dbRef, (snap) => {
+      const msg = snap.val();
+      if (!msg?.text) return;
+      
+      if (msg.text.trim() === initialMessageText.trim()) {
+          return;
+      }
+      
+      addBubble(msg.text, msg.role === "bot");
+    });
+  </script>
+</body>
+</html>
